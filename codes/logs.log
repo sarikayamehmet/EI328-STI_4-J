@@ -1,0 +1,64 @@
+15 datasets loaded from SEED-III.
+[Cross validation] CV start!
+[Cross validation] Test on dataset 0: Acc 0.3536
+[Cross validation] Test on dataset 1: Acc 0.3945
+[Cross validation] Test on dataset 2: Acc 0.4661
+[Cross validation] Test on dataset 3: Acc 0.7817
+[Cross validation] Test on dataset 4: Acc 0.4119
+[Cross validation] Test on dataset 5: Acc 0.6199
+[Cross validation] Test on dataset 6: Acc 0.5999
+[Cross validation] Test on dataset 7: Acc 0.4973
+[Cross validation] Test on dataset 8: Acc 0.3447
+[Cross validation] Test on dataset 9: Acc 0.4602
+[Cross validation] Test on dataset 10: Acc 0.8562
+C:\Program Files (x86)\Microsoft Visual Studio\Shared\Python37_64\lib\site-packages\sklearn\svm\_base.py:258: ConvergenceWarning: Solver terminated early (max_iter=300000).  Consider pre-processing your data with StandardScaler or MinMaxScaler.
+  % self.max_iter, ConvergenceWarning)
+[Cross validation] Test on dataset 11: Acc 0.7030
+[Cross validation] Test on dataset 12: Acc 0.6205
+[Cross validation] Test on dataset 13: Acc 0.6479
+[Cross validation] Test on dataset 14: Acc 0.8044
+[Cross validation] Completed! Mean acc: 0.5708
+
+[Cross validation] CV start!
+[Cross validation] Test on dataset 0: Acc 0.3253
+[Cross validation] Test on dataset 1: Acc 0.5822
+[Cross validation] Test on dataset 2: Acc 0.4979
+[Cross validation] Test on dataset 3: Acc 0.7908
+[Cross validation] Test on dataset 4: Acc 0.5159
+[Cross validation] Test on dataset 5: Acc 0.6111
+[Cross validation] Test on dataset 6: Acc 0.6862
+[Cross validation] Test on dataset 7: Acc 0.6273
+[Cross validation] Test on dataset 8: Acc 0.5359
+[Cross validation] Test on dataset 9: Acc 0.4287
+[Cross validation] Test on dataset 10: Acc 0.8217
+[Cross validation] Test on dataset 11: Acc 0.5062
+[Cross validation] Test on dataset 12: Acc 0.9131
+[Cross validation] Test on dataset 13: Acc 0.6140
+[Cross validation] Test on dataset 14: Acc 0.7275
+[Cross validation] Completed! Mean acc: 0.6123
+
+[Cross validation] CV start!
+[Cross validation] Test on dataset 0: Acc 0.3550
+C:\Program Files (x86)\Microsoft Visual Studio\Shared\Python37_64\lib\site-packages\sklearn\svm\_base.py:258: ConvergenceWarning: Solver terminated early (max_iter=300000).  Consider pre-processing your data with StandardScaler or MinMaxScaler.
+  % self.max_iter, ConvergenceWarning)
+[Cross validation] Test on dataset 1: Acc 0.3945
+C:\Program Files (x86)\Microsoft Visual Studio\Shared\Python37_64\lib\site-packages\sklearn\svm\_base.py:258: ConvergenceWarning: Solver terminated early (max_iter=300000).  Consider pre-processing your data with StandardScaler or MinMaxScaler.
+  % self.max_iter, ConvergenceWarning)
+[Cross validation] Test on dataset 2: Acc 0.4673
+C:\Program Files (x86)\Microsoft Visual Studio\Shared\Python37_64\lib\site-packages\sklearn\svm\_base.py:258: ConvergenceWarning: Solver terminated early (max_iter=300000).  Consider pre-processing your data with StandardScaler or MinMaxScaler.
+  % self.max_iter, ConvergenceWarning)
+[Cross validation] Test on dataset 3: Acc 0.7961
+[Cross validation] Test on dataset 4: Acc 0.4502
+C:\Program Files (x86)\Microsoft Visual Studio\Shared\Python37_64\lib\site-packages\sklearn\svm\_base.py:258: ConvergenceWarning: Solver terminated early (max_iter=300000).  Consider pre-processing your data with StandardScaler or MinMaxScaler.
+  % self.max_iter, ConvergenceWarning)
+[Cross validation] Test on dataset 5: Acc 0.5834
+[Cross validation] Test on dataset 6: Acc 0.6217
+[Cross validation] Test on dataset 7: Acc 0.4319
+[Cross validation] Test on dataset 8: Acc 0.3447
+[Cross validation] Test on dataset 9: Acc 0.4458
+[Cross validation] Test on dataset 10: Acc 0.9216
+[Cross validation] Test on dataset 11: Acc 0.6865
+[Cross validation] Test on dataset 12: Acc 0.6612
+[Cross validation] Test on dataset 13: Acc 0.6638
+[Cross validation] Test on dataset 14: Acc 0.7929
+[Cross validation] Completed! Mean acc: 0.5744
