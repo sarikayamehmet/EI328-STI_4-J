@@ -3,9 +3,9 @@ import numpy as np
 
 class DataLoader:
     def __init__(self):
-        self.EEG_x = sio.loadmat('SEED-III/EEG_X.mat')['X'][0]
-        self.EEG_y = sio.loadmat('SEED-III/EEG_Y.mat')['Y'][0]
-        self.num_dataset = len(self.EEG_x)
+        self.EEG_x = sio.loadmat('SEED-III/EEG_X.mat')['X'][0]  # 15*3394*310
+        self.EEG_y = sio.loadmat('SEED-III/EEG_Y.mat')['Y'][0]  # 15*3394*1
+        self.num_dataset = len(self.EEG_x)  # 15
         print('%d datasets loaded from SEED-III.' % self.num_dataset)
 
     def leave_one_dataset(self, leave_which: int):
@@ -20,4 +20,4 @@ class DataLoader:
         x_test = self.EEG_x[test_index]
         y_test = self.EEG_y[test_index]
 
-        return x_train, y_train, x_test, y_test
+        return x_train, np.ravel(y_train), x_test, np.ravel(y_test)
