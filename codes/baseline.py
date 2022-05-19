@@ -1,4 +1,3 @@
-import numpy as np
 from sklearn import svm
 from dataloader import DataLoader
 
@@ -7,8 +6,8 @@ def cross_validation(data: DataLoader, model: svm.SVC):
     cv_scores = []
     for dataset_no in range(data.num_dataset):
         x_train, y_train, x_test, y_test = data.leave_one_dataset(dataset_no)
-        model.fit(x_train, np.ravel(y_train))
-        acc = model.score(x_test, np.ravel(y_test))
+        model.fit(x_train, y_train)
+        acc = model.score(x_test, y_test)
         print('[Cross validation] Test on dataset %d: Acc %.4f' % (dataset_no, acc))
         cv_scores.append(acc)
     print('[Cross validation] Completed! Mean acc: %.4f\n' % (sum(cv_scores) / len(cv_scores)))

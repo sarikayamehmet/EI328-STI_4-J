@@ -1,4 +1,3 @@
-import numpy as np
 from sklearn import svm
 from dataloader import DataLoader
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
@@ -21,6 +20,7 @@ def cross_validation(data: DataLoader, model: svm.SVC):
 
 
 if __name__ == '__main__':
+    eeg_data = DataLoader()
     models = (
         # Various kernels can be used here.
         # Hyper-parameters need to be adjusted.
@@ -28,6 +28,5 @@ if __name__ == '__main__':
         svm.SVC(kernel="rbf", gamma='scale', C=1, decision_function_shape='ovo', max_iter=300000),  # 2
         svm.SVC(kernel="poly", degree=3, gamma="auto", C=1, decision_function_shape='ovo', max_iter=300000)     # 3
     )
-    eeg_data = DataLoader()
     for model in models:
         cross_validation(eeg_data, model)
