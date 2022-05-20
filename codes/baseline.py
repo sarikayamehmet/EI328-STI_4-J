@@ -2,9 +2,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sklearn import svm
 from sklearn.metrics import ConfusionMatrixDisplay
-from dataloader import DataLoader
+from dataloader import EEGDataset
 
-def cross_validation(data: DataLoader, model: svm.SVC):
+def cross_validation(data: EEGDataset, model: svm.SVC):
     print('[Cross validation] CV start!')
     cv_scores = []
     y_true, y_pred = [], []
@@ -21,7 +21,7 @@ def cross_validation(data: DataLoader, model: svm.SVC):
     return np.array(y_true), np.array(y_pred)
 
 if __name__ == '__main__':
-    eeg_data = DataLoader()
+    eeg_data = EEGDataset()
     models = (
         # Various kernels can be used here.
         # Hyper-parameters need to be adjusted.

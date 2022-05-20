@@ -11,7 +11,10 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "cwd": "${workspaceFolder}/codes"
+            "cwd": "${workspaceFolder}/codes",
+            "args": [
+                // "--predict_only",
+            ]
         }
     ]
 }
