@@ -20,7 +20,7 @@ def parse_args():
 
     p = parser.add_argument_group("Train")
     p.add_argument("--batch_size", type=int, default=32)
-    p.add_argument("--lr", type=float, default=1e-3)
+    p.add_argument("--lr", type=float, default=1e-5)
     p.add_argument("--epoch", type=int, default=10)
     p.add_argument("--seed", type=int, default=42)
 
@@ -41,21 +41,21 @@ def seed_everything(seed):
 if __name__ == '__main__':
     args = parse_args()
     device = torch.device(
-    # "cuda" if torch.cuda.is_available() else "cpu"
-    "cpu"
+    "cuda" if torch.cuda.is_available() else "cpu"
+    # "cpu"
     )
     seed_everything(args.seed)
 
     eeg_data = EEGDataset()
-    models = [LSTM_net() for i in range(15)]
+    models = [LSTM_net().to(device) for i in range(15)]
     loss_func = nn.CrossEntropyLoss()
     total_y_true, total_y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
     for idx, model in enumerate(models):
         x_train, y_train, x_test, y_test = eeg_data.leave_one_dataset(idx)
-        train_data = DataGenerator(x_train, y_train)
-        test_data = DataGenerator(x_test, y_test)
-        train_loader = DataLoader(train_data, args.batch_size, collate_fn=train_data.collate)
-        test_loader = DataLoader(test_data, args.batch_size, collate_fn=test_data.collate)
+        train_data = DataGenerator(x_train, y_train, seq_len=8)
+        test_data = DataGenerator(x_test, y_test, seq_len=8)
+        train_loader = DataLoader(train_data, args.batch_size)
+        test_loader = DataLoader(test_data, args.batch_size)
 
         if not args.predict_only:
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -66,14 +66,10 @@ if __name__ == '__main__':
                 hx, cx = torch.zeros(args.batch_size, 256), torch.zeros(args.batch_size, 256)
                 for i, batch in enumerate(train_loader):
                     batch_x, batch_y = batch
-                    this_batch_size = batch_x.size()[0]     # for last batch
                     batch_x = batch_x.to(device)
                     batch_y = batch_y.to(device)
-                    hx, cx = hx.detach(), cx.detach()
-                    hx, cx = hx[-this_batch_size:], cx[-this_batch_size:]
 
-                    inputs = batch_x, (hx, cx)
-                    logits, (hx, cx) = model(inputs)
+                    logits = model(batch_x)
                     loss = loss_func(logits, batch_y)
                     optimizer.zero_grad()
                     loss.backward()
@@ -91,17 +87,12 @@ if __name__ == '__main__':
         model.load_state_dict(torch.load(path))
         model.eval()
         y_true, y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
-        hx, cx = torch.zeros(args.batch_size, 256), torch.zeros(args.batch_size, 256)
         for i, batch in enumerate(test_loader):
             batch_x, batch_y = batch
-            this_batch_size = batch_x.size()[0]
             batch_x = batch_x.to(device)
             batch_y = batch_y.data.numpy() - 1
-            hx, cx = hx.detach(), cx.detach()
-            hx, cx = hx[-this_batch_size:], cx[-this_batch_size:]
 
-            inputs = batch_x, (hx, cx)
-            logits, (hx, cx) = model(inputs)
+            logits = model(batch_x)
             logits = logits.data.cpu().numpy()
             pred = np.argmax(logits, axis=1) - 1
             y_true = np.append(y_true, batch_y)
@@ -120,4 +111,5 @@ if __name__ == '__main__':
         normalize='all', 
         values_format='.3f'
     )
+    plt.savefig('figures/LSTMbaseline.png')
     plt.show()

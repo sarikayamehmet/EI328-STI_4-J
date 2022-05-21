@@ -3,10 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-NUM_STATES = 310
-HIDDEN_SIZE = 512
-
-LR = 1e-3
+FEATURE_DIM = 310
+HIDDEN_SIZE = 256
 
 def normalized_columns_initializer(weights, std=1.0):
     out = torch.randn(weights.size())
@@ -26,25 +24,18 @@ def weights_init(m):
 class LSTM_net(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.linear1 = nn.Linear(NUM_STATES, HIDDEN_SIZE)
-        self.linear2 = nn.Linear(HIDDEN_SIZE, HIDDEN_SIZE)
-        self.lstm = nn.LSTMCell(HIDDEN_SIZE, 256)
-
+        self.lstm = nn.LSTM(FEATURE_DIM, HIDDEN_SIZE, batch_first=True, bidirectional=True)
+        self.linear1 = nn.Linear(HIDDEN_SIZE * 2, 256)
         self.clf = nn.Linear(256, 3)
 
         self.apply(weights_init)
-        self.clf.weight.data = normalized_columns_initializer(self.clf.weight.data, 0.01)
-        self.clf.bias.data.fill_(0)
-        self.lstm.bias_ih.data.fill_(0)
-        self.lstm.bias_hh.data.fill_(0)
 
-    def forward(self, inputs):
-        s, (hx, cx) = inputs
-        x = F.elu(self.linear1(s))
-        x = F.elu(self.linear2(x))
-
-        hx, cx = self.lstm(x, (hx, cx))
-        x = hx
+    def forward(self, inputs):  # inputs: (batch_size, seq_len, FEATURE_DIM)
+        output, (hx, cx) = self.lstm(inputs)    # hx: (2, batch_size, HIDDEN_SIZE)
+        hx_L = hx[-2]
+        hx_R = hx[-1]
+        x = torch.cat((hx_L, hx_R), dim=1)  # x: (batch_size, HIDDEN_SIZE * 2)
+        x = F.elu(self.linear1(x))
         logits = self.clf(x)
 
-        return logits, (hx, cx)
+        return logits
