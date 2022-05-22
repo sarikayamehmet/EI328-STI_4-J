@@ -26,7 +26,7 @@ class EEGDataset:
         return x_train, np.ravel(y_train), x_test, np.ravel(y_test)
 
 
-class _EEGDataset:
+class EEGDatasetWithDomain:
     def __init__(self):
         self.EEG_x = sio.loadmat('SEED-III/EEG_X.mat')['X'][0]  # (15, ) 3394, 310
         self.EEG_y = sio.loadmat('SEED-III/EEG_Y.mat')['Y'][0]  # (15, ) 3394, 1
@@ -44,9 +44,9 @@ class _EEGDataset:
 
         train_index = np.delete(np.arange(self.num_dataset), leave_which)
         test_index = leave_which
-        x_train = np.concatenate(self.EEG_x[train_index])   # (15*3394, 310)
-        y_train = np.concatenate(self.EEG_y[train_index])   # (15*3394, )
-        d_source = np.concatenate(self.EEG_d[train_index])
+        x_train = np.concatenate(self.EEG_x[train_index])   # (14*3394, 310)
+        y_train = np.concatenate(self.EEG_y[train_index])   # (14*3394, )
+        d_source = np.concatenate(self.EEG_d[train_index])  
         x_test = self.EEG_x[test_index]     # (3394*310, 310)
         y_test = self.EEG_y[test_index]     # (3394, )
         d_target = self.EEG_d[test_index]
@@ -113,9 +113,9 @@ class DomainDataGenerator(Dataset):
             seq_dt = self.dt[idx]
 
             seq_d = self.ds[idx]
-            seq_d = torch.tensor(seq_d).long()
+            seq_d = torch.tensor(seq_d).float()
             seq_xt = torch.tensor(seq_xt).float()
-            seq_dt = torch.tensor(seq_dt).long()
+            seq_dt = torch.tensor(seq_dt).float()
             return seq_x, seq_y, seq_d, seq_xt, seq_dt
         else:
             return seq_x, seq_y

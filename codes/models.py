@@ -82,14 +82,20 @@ class DANN(nn.Module):
 
         self.task_classifier = nn.Sequential(
             nn.Linear(HIDDEN_SIZE * 2, 256),
-            nn.ELU(),
-            nn.Linear(256, 3)
+            nn.BatchNorm1d(256),
+            nn.ELU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(256, 64),
+            nn.BatchNorm1d(64), 
+            nn.ELU(inplace=True), 
+            nn.Linear(64, 3)
         )
 
         self.domain_classifier = nn.Sequential(
             nn.Linear(HIDDEN_SIZE * 2, 256),
-            nn.ELU(),
-            nn.Linear(256, 2)   # source 0, target 1
+            nn.BatchNorm1d(256), 
+            nn.ELU(inplace=True),
+            nn.Linear(256, 1)   # source 0, target 1
         )
 
         self.grl = GRL(lambda_=lambda_)
