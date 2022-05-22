@@ -1,18 +1,24 @@
 import argparse
 import os
-from os.path import join
 import random
-from matplotlib import pyplot as plt
+from os.path import join
+
 import numpy as np
-from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 import torch
-from models import LSTM_net
-from dataloader import EEGDataset, DataGenerator
 import torch.nn as nn
+from matplotlib import pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 from torch.utils.data import DataLoader
+
+from dataloader import DataGenerator, EEGDataset
+from models import LSTM_net
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
+
+    p = parser.add_argument_group("General")
+    p.add_argument("--device", type=str, default='cpu')
 
     p = parser.add_argument_group("Model")
     p.add_argument("--load_path", type=str, default='./saved_models/LSTMbaseline')
@@ -40,10 +46,10 @@ def seed_everything(seed):
 
 if __name__ == '__main__':
     args = parse_args()
-    device = torch.device(
-    # "cuda" if torch.cuda.is_available() else "cpu"
-    "cpu"
-    )
+    if args.device == 'gpu':
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
     seed_everything(args.seed)
 
     eeg_data = EEGDataset()
@@ -66,13 +72,10 @@ if __name__ == '__main__':
                 hx, cx = torch.zeros(args.batch_size, 256), torch.zeros(args.batch_size, 256)
                 for i, batch in enumerate(train_loader):
                     batch_x, batch_y = batch
-                    print(batch_x.shape, batch_y.shape)
                     batch_x = batch_x.to(device)
                     batch_y = batch_y.to(device)
 
                     logits = model(batch_x)
-                    print(logits.shape)
-                    exit()
                     loss = loss_func(logits, batch_y)
                     optimizer.zero_grad()
                     loss.backward()

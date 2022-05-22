@@ -1,17 +1,20 @@
 import argparse
 import os
-from os.path import join
 import random
-from matplotlib import pyplot as plt
+from os.path import join
+
 import numpy as np
 import scipy
 import sklearn.metrics
-from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 import torch
-from models import LSTM_net
-from dataloader import EEGDataset, DataGenerator
 import torch.nn as nn
+from matplotlib import pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 from torch.utils.data import DataLoader
+
+from dataloader import DataGenerator, EEGDataset
+from models import LSTM_net
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -125,7 +128,6 @@ if __name__ == '__main__':
             print('[TCA][Leave %d] Train begin!' % idx)
             model.train()
             for ep in range(1, args.epoch + 1):
-                hx, cx = torch.zeros(args.batch_size, 256), torch.zeros(args.batch_size, 256)
                 for i, batch in enumerate(train_loader):
                     batch_x, batch_y = batch
                     batch_x = batch_x.to(device)

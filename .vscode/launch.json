@@ -13,7 +13,7 @@
             "justMyCode": true,
             "cwd": "${workspaceFolder}/codes",
             "args": [
-                "--device", "gpu",
+                // "--device", "gpu",
                 // "--predict_only",
             ]
         }

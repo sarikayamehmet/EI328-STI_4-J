@@ -1,8 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Function
-import numpy as np
 
 FEATURE_DIM = 310
 HIDDEN_SIZE = 256
@@ -47,7 +47,7 @@ class LSTM_net(nn.Module):
         return logits
 
 
-class grl_func(torch.autograd.Function):
+class grl_func(Function):
     def __init__(self):
         super(grl_func, self).__init__()
 
@@ -115,3 +115,87 @@ class DANN(nn.Module):
 
     def set_lambda(self, lambda_):
         self.grl.set_lambda(lambda_)
+
+
+class ADDA_extractor(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.lstm = nn.LSTM(FEATURE_DIM, HIDDEN_SIZE, batch_first=True, bidirectional=True)
+
+    def forward(self, inputs):
+        output, (hx, cx) = self.lstm(inputs)  # hx: (2, batch_size, HIDDEN_SIZE)
+        hx_L = hx[-2]
+        hx_R = hx[-1]
+        features = torch.cat((hx_L, hx_R), dim=1)   # features: (batch_size, HIDDEN_SIZE * 2)
+        return features
+
+class ADDA_classifier(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.classifier = nn.Sequential(
+            nn.Linear(HIDDEN_SIZE * 2, 256),
+            nn.BatchNorm1d(256),
+            nn.ELU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(256, 64),
+            nn.BatchNorm1d(64), 
+            nn.ELU(inplace=True), 
+            nn.Linear(64, 3)
+        )
+
+    def forward(self, inputs):
+        logits = self.classifier(inputs)
+        return logits
+
+class ADDA_discriminator(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.discriminator = nn.Sequential(
+            nn.Linear(HIDDEN_SIZE * 2, 256),
+            nn.BatchNorm1d(256), 
+            nn.ELU(inplace=True),
+            nn.Linear(256, 1)   # source 0, target 1
+        )
+    
+    def forward(self, inputs):
+        logits = self.discriminator(inputs)
+        return logits
+
+class ADDAmodel:
+    def __init__(self, lambda_=0.) -> None:
+        self.src_extractor = ADDA_extractor()
+        self.tar_extractor = ADDA_extractor()
+        self.label_classifier = ADDA_classifier()
+        self.domain_discriminator = ADDA_discriminator()
+        self.grl = GRL(lambda_=lambda_)
+
+    def update_para(self):
+        'Copy parameters from src_extractor to tar_extractor.'
+        self.tar_extractor.load_state_dict(self.src_extractor.state_dict())
+
+    def set_lambda(self, lambda_):
+        self.grl.set_lambda(lambda_)
+
+    def save_model(self, path: str):
+        torch.save({
+            'src_extractor': self.src_extractor.state_dict(), 
+            'tar_extractor': self.tar_extractor.state_dict(), 
+            'label_classifier': self.label_classifier.state_dict(), 
+            'domain_discriminator': self.domain_discriminator.state_dict()
+            },
+            path
+        )
+
+    def load_model(self, path: str):
+        state_dict = torch.load(path)
+        self.src_extractor.load_state_dict(state_dict['src_extractor'])
+        self.tar_extractor.load_state_dict(state_dict['tar_extractor'])
+        self.label_classifier.load_state_dict(state_dict['label_classifier'])
+        self.domain_discriminator.load_state_dict(state_dict['domain_discriminator'])
+
+    def to_device(self, device):
+        self.src_extractor.to(device)
+        self.tar_extractor.to(device)
+        self.label_classifier.to(device)
+        self.domain_discriminator.to(device)
+        self.grl.to(device)

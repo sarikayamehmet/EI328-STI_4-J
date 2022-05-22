@@ -1,16 +1,18 @@
 import argparse
 import os
-from os.path import join
 import random
-from matplotlib import pyplot as plt
+from os.path import join
+
 import numpy as np
-from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 import torch
-from models import LSTM_net, DANN
-from dataloader import EEGDatasetWithDomain, DomainDataGenerator
-from utils import AverageMeter
 import torch.nn as nn
+from matplotlib import pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 from torch.utils.data import DataLoader
+
+from dataloader import DomainDataGenerator, EEGDatasetWithDomain
+from models import DANN
+from utils import AverageMeter
 
 
 def parse_args():
