@@ -4,6 +4,8 @@ from os.path import join
 import random
 from matplotlib import pyplot as plt
 import numpy as np
+import scipy
+import sklearn.metrics
 from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 import torch
 from models import LSTM_net
@@ -15,8 +17,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     p = parser.add_argument_group("Model")
-    p.add_argument("--load_path", type=str, default='./saved_models/LSTMbaseline')
-    p.add_argument("--save_path", type=str, default='./saved_models/LSTMbaseline')
+    p.add_argument("--load_path", type=str, default='./saved_models/TCA')
+    p.add_argument("--save_path", type=str, default='./saved_models/TCA')
 
     p = parser.add_argument_group("Train")
     p.add_argument("--batch_size", type=int, default=32)
@@ -38,6 +40,64 @@ def seed_everything(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
+class TCA:
+    def __init__(self, kernel_type='primal', dim=310, lamb=1, gamma=1):
+        '''
+        Init func
+        :param kernel_type: kernel, values: 'primal' | 'linear' | 'rbf'
+        :param dim: dimension after transfer
+        :param lamb: lambda value in equation
+        :param gamma: kernel bandwidth for rbf kernel
+        '''
+        self.kernel_type = kernel_type
+        self.dim = dim
+        self.lamb = lamb
+        self.gamma = gamma
+
+    def kernel(self, ker, X1, X2, gamma):
+        K = None
+        if not ker or ker == 'primal':
+            K = X1
+        elif ker == 'linear':
+            if X2 is not None:
+                K = sklearn.metrics.pairwise.linear_kernel(np.asarray(X1).T, np.asarray(X2).T)
+            else:
+                K = sklearn.metrics.pairwise.linear_kernel(np.asarray(X1).T)
+        elif ker == 'rbf':
+            if X2 is not None:
+                K = sklearn.metrics.pairwise.rbf_kernel(np.asarray(X1).T, np.asarray(X2).T, gamma)
+            else:
+                K = sklearn.metrics.pairwise.rbf_kernel(np.asarray(X1).T, None, gamma)
+        return K
+
+    def fit(self, Xs, Xt):
+        '''
+        Transform Xs and Xt
+        :param Xs: ns * n_feature, source feature
+        :param Xt: nt * n_feature, target feature
+        :return: Xs_new and Xt_new after TCA
+        '''
+        X = np.hstack((Xs.T, Xt.T))
+        X /= np.linalg.norm(X, axis=0)
+        m, n = X.shape
+        ns, nt = len(Xs), len(Xt)
+        e = np.vstack((1 / ns * np.ones((ns, 1)), -1 / nt * np.ones((nt, 1))))
+        M = e * e.T
+        M = M / np.linalg.norm(M, 'fro')
+        H = np.eye(n) - 1 / n * np.ones((n, n))
+        K = self.kernel(self.kernel_type, X, None, gamma=self.gamma)
+        n_eye = m if self.kernel_type == 'primal' else n
+        a, b = K @ M @ K.T + self.lamb * np.eye(n_eye), K @ H @ K.T
+        w, V = scipy.linalg.eig(a, b)
+        ind = np.argsort(w)
+        A = V[:, ind[:self.dim]]
+        Z = A.T @ K
+        Z /= np.linalg.norm(Z, axis=0)
+
+        Xs_new, Xt_new = Z[:, :ns].T, Z[:, ns:].T
+        return Xs_new, Xt_new
+
+
 if __name__ == '__main__':
     args = parse_args()
     device = torch.device(
@@ -47,11 +107,13 @@ if __name__ == '__main__':
     seed_everything(args.seed)
 
     eeg_data = EEGDataset()
+    tca = TCA(kernel_type='primal', dim=310)
     models = [LSTM_net().to(device) for i in range(15)]
     loss_func = nn.CrossEntropyLoss()
     total_y_true, total_y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
     for idx, model in enumerate(models):
         x_train, y_train, x_test, y_test = eeg_data.leave_one_dataset(idx)
+        x_train, x_test = tca.fit(x_train, x_test)
         train_data = DataGenerator(x_train, y_train, seq_len=8)
         test_data = DataGenerator(x_test, y_test, seq_len=8)
         train_loader = DataLoader(train_data, args.batch_size, shuffle=True)
@@ -60,7 +122,7 @@ if __name__ == '__main__':
         if not args.predict_only:
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
             total_steps = len(train_loader)
-            print('[LSTM baseline][Leave %d] Train begin!' % idx)
+            print('[TCA][Leave %d] Train begin!' % idx)
             model.train()
             for ep in range(1, args.epoch + 1):
                 hx, cx = torch.zeros(args.batch_size, 256), torch.zeros(args.batch_size, 256)
@@ -74,7 +136,7 @@ if __name__ == '__main__':
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                    print(f'\r[LSTM baseline][Leave {idx}][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} Loss: {loss.item():.3f}', end='')
+                    print(f'\r[TCA][Leave {idx}][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} Loss: {loss.item():.3f}', end='')
             
             path = join(args.save_path, 'model_leave%d.bin' % idx)
             if not os.path.exists(args.save_path):
@@ -82,7 +144,7 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), path)
             print()
         
-        print('[LSTM baseline][Leave %d] Test begin!' % idx)
+        print('[TCA][Leave %d] Test begin!' % idx)
         path = join(args.save_path, 'model_leave%d.bin' % idx)
         model.load_state_dict(torch.load(path))
         model.eval()
@@ -99,17 +161,17 @@ if __name__ == '__main__':
             y_pred = np.append(y_pred, pred)
 
         acc = accuracy_score(y_true, y_pred)
-        print('[LSTM baseline][Leave %d] Test done! On dataset #%d: Acc %.4f' % (idx, idx, acc))
+        print('[TCA][Leave %d] Test done! On dataset #%d: Acc %.4f' % (idx, idx, acc))
         total_y_true = np.append(total_y_true, y_true)
         total_y_pred = np.append(total_y_pred, y_pred)
 
     acc = accuracy_score(total_y_true, total_y_pred)
-    print('[LSTM baseline] All tests done! Total acc: %.4f' % acc)
+    print('[TCA] All tests done! Total acc: %.4f' % acc)
     disp = ConfusionMatrixDisplay.from_predictions(
         total_y_true, 
         total_y_pred, 
         normalize='all', 
         values_format='.3f'
     )
-    plt.savefig('figures/LSTMbaseline.png')
+    plt.savefig('figures/TCA.png')
     plt.show()

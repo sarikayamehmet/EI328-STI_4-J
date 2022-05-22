@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score
 import torch
-from models import LSTM_net
+from models import DANN_net
 from dataloader import EEGDataset, DataGenerator
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -15,8 +15,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     p = parser.add_argument_group("Model")
-    p.add_argument("--load_path", type=str, default='./saved_models/LSTMbaseline')
-    p.add_argument("--save_path", type=str, default='./saved_models/LSTMbaseline')
+    p.add_argument("--load_path", type=str, default='./saved_models/DANN')
+    p.add_argument("--save_path", type=str, default='./saved_models/DANN')
 
     p = parser.add_argument_group("Train")
     p.add_argument("--batch_size", type=int, default=32)
@@ -47,10 +47,12 @@ if __name__ == '__main__':
     seed_everything(args.seed)
 
     eeg_data = EEGDataset()
-    models = [LSTM_net().to(device) for i in range(15)]
-    loss_func = nn.CrossEntropyLoss()
+    models = [DANN_net() for i in range(15)]
+    label_loss_func = nn.CrossEntropyLoss()
+    domain_loss_func = nn.BCEWithLogitsLoss()
     total_y_true, total_y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
     for idx, model in enumerate(models):
+        model.to(device)
         x_train, y_train, x_test, y_test = eeg_data.leave_one_dataset(idx)
         train_data = DataGenerator(x_train, y_train, seq_len=8)
         test_data = DataGenerator(x_test, y_test, seq_len=8)
@@ -60,21 +62,29 @@ if __name__ == '__main__':
         if not args.predict_only:
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
             total_steps = len(train_loader)
-            print('[LSTM baseline][Leave %d] Train begin!' % idx)
+            print('[DANN][Leave %d] Train begin!' % idx)
             model.train()
             for ep in range(1, args.epoch + 1):
-                hx, cx = torch.zeros(args.batch_size, 256), torch.zeros(args.batch_size, 256)
                 for i, batch in enumerate(train_loader):
+                    p = float(i + ep * )
+                    alpha = 2. / (1. + np.exp(-10 * p)) - 1
+
                     batch_x, batch_y = batch
+                    batch_domain_label = torch.zeros(args.batch_size).long()
                     batch_x = batch_x.to(device)
                     batch_y = batch_y.to(device)
+                    batch_domain_label = batch_domain_label.to(device)
 
-                    logits = model(batch_x)
-                    loss = loss_func(logits, batch_y)
+                    label_logits, domain_logits = model(batch_x, alpha=alpha)
+                    loss_label_src = label_loss_func(label_logits, batch_y)
+                    loss_domain_src = domain_loss_func(domain_logits, batch_domain_label)
+
+                    
+                    
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                    print(f'\r[LSTM baseline][Leave {idx}][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} Loss: {loss.item():.3f}', end='')
+                    print(f'\r[DANN][Leave {idx}][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} Loss: {loss.item():.3f}', end='')
             
             path = join(args.save_path, 'model_leave%d.bin' % idx)
             if not os.path.exists(args.save_path):
@@ -82,7 +92,7 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), path)
             print()
         
-        print('[LSTM baseline][Leave %d] Test begin!' % idx)
+        print('[DANN][Leave %d] Test begin!' % idx)
         path = join(args.save_path, 'model_leave%d.bin' % idx)
         model.load_state_dict(torch.load(path))
         model.eval()
@@ -99,17 +109,17 @@ if __name__ == '__main__':
             y_pred = np.append(y_pred, pred)
 
         acc = accuracy_score(y_true, y_pred)
-        print('[LSTM baseline][Leave %d] Test done! On dataset #%d: Acc %.4f' % (idx, idx, acc))
+        print('[DANN][Leave %d] Test done! On dataset #%d: Acc %.4f' % (idx, idx, acc))
         total_y_true = np.append(total_y_true, y_true)
         total_y_pred = np.append(total_y_pred, y_pred)
 
     acc = accuracy_score(total_y_true, total_y_pred)
-    print('[LSTM baseline] All tests done! Total acc: %.4f' % acc)
+    print('[DANN] All tests done! Total acc: %.4f' % acc)
     disp = ConfusionMatrixDisplay.from_predictions(
         total_y_true, 
         total_y_pred, 
         normalize='all', 
         values_format='.3f'
     )
-    plt.savefig('figures/LSTMbaseline.png')
+    plt.savefig('figures/DANN.png')
     plt.show()
