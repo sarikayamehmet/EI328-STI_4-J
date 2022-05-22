@@ -28,6 +28,7 @@ def parse_args():
     p.add_argument("--lr", type=float, default=1e-5)
     p.add_argument("--epoch", type=int, default=10)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--domain_loss_rate", type=float, default=0.5)
 
     p = parser.add_argument_group("Predict")
     p.add_argument("--predict_only", default=False, action='store_true')
@@ -81,8 +82,7 @@ if __name__ == '__main__':
                     lambda_ = 2. / (1. + np.exp(-10 * p)) - 1
                     model.set_lambda(lambda_)
                     params = batch
-                    # batch_x = batch_x.to(device)
-                    # batch_y = batch_y.to(device)
+
                     for param_idx, param in enumerate(params):
                         params[param_idx] = param.to(device)
                     batch_x, batch_y, batch_d, batch_xt, batch_dt = params
@@ -93,7 +93,7 @@ if __name__ == '__main__':
                     # Train model using target
                     _, domain_predict_t = model(batch_xt)
                     domain_loss_t = domain_loss_func(domain_predict_t, batch_dt.unsqueeze(-1))
-                    loss = task_loss + (domain_loss + domain_loss_t) * 0.5
+                    loss = task_loss + (domain_loss + domain_loss_t) * args.domain_loss_rate
                     
                     optimizer.zero_grad()
                     loss.backward()
