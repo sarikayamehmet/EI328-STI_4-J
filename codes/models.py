@@ -30,7 +30,8 @@ class LSTM_net(nn.Module):
         super().__init__()
         self.lstm = nn.LSTM(FEATURE_DIM, HIDDEN_SIZE, batch_first=True, bidirectional=True)
         self.linear1 = nn.Linear(HIDDEN_SIZE * 2, 256)
-        self.clf = nn.Linear(256, 3)
+        self.linear2 = nn.Linear(256, 64)
+        self.clf = nn.Linear(64, 3)
 
         self.apply(weights_init)
 
@@ -40,6 +41,7 @@ class LSTM_net(nn.Module):
         hx_R = hx[-1]
         x = torch.cat((hx_L, hx_R), dim=1)  # x: (batch_size, HIDDEN_SIZE * 2)
         x = F.elu(self.linear1(x))
+        x = F.elu(self.linear2(x))
         logits = self.clf(x)
 
         return logits
