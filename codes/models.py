@@ -167,14 +167,10 @@ class ADDAmodel:
         self.tar_extractor = ADDA_extractor()
         self.label_classifier = ADDA_classifier()
         self.domain_discriminator = ADDA_discriminator()
-        self.grl = GRL(lambda_=lambda_)
 
     def update_para(self):
         'Copy parameters from src_extractor to tar_extractor.'
         self.tar_extractor.load_state_dict(self.src_extractor.state_dict())
-
-    def set_lambda(self, lambda_):
-        self.grl.set_lambda(lambda_)
 
     def save_model(self, path: str):
         torch.save({
@@ -185,6 +181,19 @@ class ADDAmodel:
             },
             path
         )
+    
+    def save_classifier(self, path: str):
+        torch.save({
+            'src_extractor': self.src_extractor.state_dict(), 
+            'label_classifier': self.label_classifier.state_dict(), 
+            },
+            path
+        )
+
+    def load_classifier(self, path: str):
+        state_dict = torch.load(path)
+        self.src_extractor.load_state_dict(state_dict['src_extractor'])
+        self.label_classifier.load_state_dict(state_dict['label_classifier'])
 
     def load_model(self, path: str):
         state_dict = torch.load(path)
@@ -198,4 +207,3 @@ class ADDAmodel:
         self.tar_extractor.to(device)
         self.label_classifier.to(device)
         self.domain_discriminator.to(device)
-        self.grl.to(device)

@@ -30,6 +30,8 @@ def parse_args():
     p.add_argument("--lr", type=float, default=1e-5)
     p.add_argument("--epoch", type=int, default=10)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--classifier_only", default=False, action='store_true')
+    p.add_argument("--extractor_only", default=False, action='store_true')
 
     p = parser.add_argument_group("Predict")
     p.add_argument("--predict_only", default=False, action='store_true')
@@ -62,6 +64,7 @@ if __name__ == '__main__':
     total_y_true, total_y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
     
     for idx, model in enumerate(models):
+        # if idx == 0: continue
         model.to_device(device)
         x_train, y_train, x_test, y_test, d_source, d_target = eeg_data.leave_one_dataset(idx)
         train_data = DomainDataGenerator(x_train, y_train, d_source, x_test, d_target, seq_len=8)
@@ -71,78 +74,113 @@ if __name__ == '__main__':
 
         if not args.predict_only:
             print('[ADDA][Leave %d] ==============================' % idx)
-            # Step 1: Train label classifier
-            optimizer = torch.optim.Adam(
-                list(model.src_extractor.parameters()) + list(model.label_classifier.parameters()), 
-                lr=args.lr
-            )
-            total_steps = len(train_loader)
-            print('[ADDA][Leave %d][Label classifier] Train begin!' % idx)
-            model.src_extractor.train()
-            model.label_classifier.train()
-            for ep in range(1, args.epoch + 1):
+            if not args.extractor_only:
+                # Step 1: Train label classifier
+                optimizer = torch.optim.Adam(
+                    list(model.src_extractor.parameters()) + list(model.label_classifier.parameters()), 
+                    lr=args.lr
+                )
+                total_steps = len(train_loader)
+                print('[ADDA][Leave %d][Label classifier] Train begin!' % idx)
+                model.src_extractor.train()
+                model.label_classifier.train()
+                model.domain_discriminator.requires_grad_(False)
+                model.tar_extractor.requires_grad_(False)
+                for ep in range(1, args.epoch + 1):
+                    for i, batch in enumerate(train_loader):
+                        batch_x, batch_y, batch_d, batch_xt, batch_dt = batch
+                        batch_x = batch_x.to(device)
+                        batch_y = batch_y.to(device)
+                        src_features = model.src_extractor(batch_x)
+                        label_logits = model.label_classifier(src_features)
+                        loss = label_loss_func(label_logits, batch_y)
+
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+                        print(
+                            f'\r[ADDA][Leave {idx}][Label classifier][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} Loss: {loss.item():.3f}',
+                            end=''
+                        )
+                path = join(args.save_path, 'model_clf_leave%d.bin' % idx)
+                if not os.path.exists(args.save_path):
+                    os.makedirs(args.save_path)
+                model.save_classifier(path)
+                print()
+            
+                model.src_extractor.eval()
+                model.label_classifier.eval()
+                y_true, y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
                 for i, batch in enumerate(train_loader):
                     batch_x, batch_y, batch_d, batch_xt, batch_dt = batch
                     batch_x = batch_x.to(device)
-                    batch_y = batch_y.to(device)
+                    batch_y = batch_y.data.numpy() - 1
+
                     src_features = model.src_extractor(batch_x)
                     label_logits = model.label_classifier(src_features)
-                    loss = label_loss_func(label_logits, batch_y)
-
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                    print(
-                        f'\r[ADDA][Leave {idx}][Label classifier][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} Loss: {loss.item():.3f}',
-                        end=''
-                    )
-            print()
+                    label_logits = label_logits.data.cpu().numpy()
+                    pred = np.argmax(label_logits, axis=1) - 1
+                    y_true = np.append(y_true, batch_y)
+                    y_pred = np.append(y_pred, pred)
+                acc = accuracy_score(y_true, y_pred)
+                print('[ADDA][Leave %d][Label classifier] Test on classifier: Acc %.4f' % (idx, acc))
             
-            # Step 2: Train domain discriminator
-            optimizer = torch.optim.Adam(
-                list(model.tar_extractor.parameters()) + list(model.domain_discriminator.parameters()), 
-                lr=args.lr
-            )
-            total_steps = len(train_loader)
-            train_cnt = AverageMeter()
-            print('[ADDA][Leave %d][Domain discriminator] Train begin!' % idx)
-            model.src_extractor.eval()
-            model.label_classifier.eval()
-            model.update_para()
-            model.tar_extractor.train()
-            model.domain_discriminator.train()
-            for ep in range(1, args.epoch + 1):
-                train_cnt.reset()
-                for i, batch in enumerate(train_loader):
-                    train_cnt.update(0, 1)
-                    p = float(train_cnt.count + ep * len(train_loader)) / (args.epoch * len(train_loader))
-                    lambda_ = 2. / (1. + np.exp(-10 * p)) - 1
-                    model.set_lambda(lambda_)
+            if not args.classifier_only:
+                # Step 2: Train target extractor
+                path = join(args.save_path, 'model_clf_leave%d.bin' % idx)
+                model.load_classifier(path)
+                tar_optimizer = torch.optim.Adam(model.tar_extractor.parameters(), lr=1e-8)
+                dis_optimizer = torch.optim.Adam(model.domain_discriminator.parameters(), lr=1e-4)
+                total_steps = len(train_loader)
+                print('[ADDA][Leave %d][Target extractor] Train begin!' % idx)
+                model.src_extractor.eval()
+                model.src_extractor.requires_grad_(False)
+                model.label_classifier.eval()
+                model.label_classifier.requires_grad_(False)
+                model.update_para()
+                model.domain_discriminator.train()
+                model.tar_extractor.train()
+                for ep in range(1, args.epoch + 1):
+                    for i, batch in enumerate(train_loader):
+                        batch_x, batch_y, batch_d, batch_xt, batch_dt = batch
+                        batch_x = batch_x.to(device)
+                        batch_d = batch_d.to(device)
+                        batch_xt = batch_xt.to(device)
+                        batch_dt = batch_dt.to(device)
 
-                    batch_x, batch_y, batch_d, batch_xt, batch_dt = batch
-                    batch_x = batch_x.to(device)
-                    batch_d = batch_d.to(device)
-                    batch_xt = batch_xt.to(device)
-                    batch_dt = batch_dt.to(device)
-                    # Features from source domain: grad detach
-                    src_features = model.src_extractor(batch_x).detach()
-                    domain_logits_s = model.domain_discriminator(src_features)
-                    loss_s = domain_loss_func(domain_logits_s, batch_d.unsqueeze(-1))
-                    # Features from target domain: derivative reverse
-                    tar_features = model.tar_extractor(batch_xt)
-                    tar_features_reversed = model.grl(tar_features)
-                    domain_logits_t = model.domain_discriminator(tar_features_reversed)
-                    loss_t = domain_loss_func(domain_logits_t, batch_dt.unsqueeze(-1))
-                    loss = loss_s + loss_t
+                        # Step 2.1: Train discriminator
+                        model.domain_discriminator.requires_grad_(True)
+                        model.tar_extractor.requires_grad_(False)
+                        for _ in range(1):
+                            src_features = model.src_extractor(batch_x).detach()
+                            domain_logits_s = model.domain_discriminator(src_features)
+                            loss_s = domain_loss_func(domain_logits_s, batch_d.unsqueeze(-1))
+                            tar_features = model.tar_extractor(batch_xt).detach()
+                            domain_logits_t = model.domain_discriminator(tar_features)
+                            loss_t = domain_loss_func(domain_logits_t, batch_dt.unsqueeze(-1))
+                            loss = loss_s + loss_t
+                            dis_optimizer.zero_grad()
+                            loss.backward()
+                            dis_optimizer.step()
 
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                    print(
-                        f'\r[ADDA][Leave {idx}][Domain discriminator][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} source Loss: {loss_s.item():.3f}, target Loss: {loss_t.item():.3f}',
-                        end=''
-                    )
-            print()
+                        # Step 2.2: Train target extractor
+                        model.domain_discriminator.requires_grad_(False)
+                        model.tar_extractor.requires_grad_(True)
+                        dis_optimizer.zero_grad()
+                        for _ in range(3):
+                            tar_features = model.tar_extractor(batch_xt)
+                            domain_logits_t = model.domain_discriminator(tar_features)
+                            loss_adv = domain_loss_func(domain_logits_t, batch_d.unsqueeze(-1)) # deceive
+                            loss = loss_adv
+                            tar_optimizer.zero_grad()
+                            loss.backward()
+                            tar_optimizer.step()
+
+                        print(
+                            f'\r[ADDA][Leave {idx}][Target extractor][Epoch {ep}/{args.epoch}] > {i + 1}/{total_steps} source Loss: {loss_s.item():.3f}, target Loss: {loss_t.item():.3f}, adv Loss: {loss_adv.item():.3f}',
+                            end=''
+                        )
+                print()
 
             path = join(args.save_path, 'model_leave%d.bin' % idx)
             if not os.path.exists(args.save_path):
@@ -150,7 +188,7 @@ if __name__ == '__main__':
             model.save_model(path)
         
         # Step 3: Use trained tar_extractor to classify labels
-        print('\n[ADDA][Leave %d] Test begin!' % idx)
+        print('[ADDA][Leave %d] Test begin!' % idx)
         path = join(args.save_path, 'model_leave%d.bin' % idx)
         model.load_model(path)
         model.tar_extractor.eval()
