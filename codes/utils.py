@@ -13,3 +13,11 @@ class AverageMeter(object):
         self.sum += val*n
         self.count += n
         self.avg = self.sum/self.count
+
+
+import numpy as np
+import scipy.io
+import scipy.linalg
+import sklearn.metrics
+import sklearn.neighbors
+
