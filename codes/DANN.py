@@ -110,7 +110,7 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), path)
             print()
 
-        print('\n[DANN][Leave %d] Test begin!' % idx)
+        print('[DANN][Leave %d] Test begin!' % idx)
         path = join(args.save_path, 'model_leave%d.bin' % idx)
         model.load_state_dict(torch.load(path))
         model.eval()

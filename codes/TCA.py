@@ -19,6 +19,9 @@ from models import LSTM_net
 def parse_args():
     parser = argparse.ArgumentParser()
 
+    p = parser.add_argument_group("General")
+    p.add_argument("--device", type=str, default='cpu')
+
     p = parser.add_argument_group("Model")
     p.add_argument("--load_path", type=str, default='./saved_models/TCA')
     p.add_argument("--save_path", type=str, default='./saved_models/TCA')
@@ -103,10 +106,10 @@ class TCA:
 
 if __name__ == '__main__':
     args = parse_args()
-    device = torch.device(
-    "cuda" if torch.cuda.is_available() else "cpu"
-    # "cpu"
-    )
+    if args.device == 'gpu':
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
     seed_everything(args.seed)
 
     eeg_data = EEGDataset()

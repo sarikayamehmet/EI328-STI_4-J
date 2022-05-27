@@ -13,9 +13,12 @@
             "justMyCode": true,
             "cwd": "${workspaceFolder}/codes",
             "args": [
-                // "--device", "gpu",
+                "--device", "gpu",
                 // "--predict_only",
-                "--extractor_only",
+                // "--extractor_only",
+                "--batch_size", "128", 
+                "--epoch", "100", 
+                "--lr", "1e-3",
             ]
         }
     ]

@@ -40,6 +40,7 @@ class EEGDatasetWithDomain:
         if leave_which not in range(self.num_dataset):
             print('Leave-one error: out of index!')
             return
+        self.EEG_d[:, :] = 0
         self.EEG_d[leave_which, :] = 1
 
         train_index = np.delete(np.arange(self.num_dataset), leave_which)
@@ -52,6 +53,17 @@ class EEGDatasetWithDomain:
         d_target = self.EEG_d[test_index]
 
         return x_train, np.ravel(y_train), x_test, np.ravel(y_test), d_source, d_target
+
+    def choose_one_dataset(self, choose_which: int, is_src: bool):
+        if choose_which not in range(self.num_dataset):
+            print('Choose-one error: out of index!')
+            return
+        self.EEG_d[choose_which, :] = 0 if is_src else 1
+
+        x = self.EEG_x[choose_which]
+        y = self.EEG_y[choose_which]
+        d = self.EEG_d[choose_which]
+        return x, np.ravel(y), d
 
 
 class DataGenerator(Dataset):
