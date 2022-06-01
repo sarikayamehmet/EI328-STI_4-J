@@ -30,8 +30,8 @@ if __name__ == '__main__':
     models = (
         # Various kernels can be used here.
         # Hyper-parameters need to be adjusted.
-        svm.SVC(kernel='linear', C=1, decision_function_shape='ovo', max_iter=300000),  # 1
-        # svm.SVC(kernel="rbf", gamma='scale', C=1, decision_function_shape='ovo', max_iter=300000),  # 2
+        # svm.SVC(kernel='linear', C=1, decision_function_shape='ovo', max_iter=300000),  # 1
+        svm.SVC(kernel="rbf", gamma='scale', C=1, decision_function_shape='ovo', max_iter=300000),  # 2
         # svm.SVC(kernel="poly", degree=3, gamma="auto", C=1, decision_function_shape='ovo', max_iter=300000)     # 3
     )
     for model in models:

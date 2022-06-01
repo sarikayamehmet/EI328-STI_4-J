@@ -113,7 +113,7 @@ if __name__ == '__main__':
     seed_everything(args.seed)
 
     eeg_data = EEGDataset()
-    tca = TCA(kernel_type='primal', dim=310)
+    tca = TCA(kernel_type='rbf', dim=310)
     models = [LSTM_net().to(device) for i in range(15)]
     loss_func = nn.CrossEntropyLoss()
     total_y_true, total_y_pred = np.empty(0, dtype=int), np.empty(0, dtype=int)
