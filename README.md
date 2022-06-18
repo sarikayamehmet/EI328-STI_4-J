@@ -1,7 +1,5 @@
-# EI328-STI_4-J
-上海交通大学EI328《工程实践与科技创新Ⅳ-J》2021-2022春季学期课程大作业
 Engineering Practice and Scientific and Technological Innovation Homework IV
-===
+
 ## executable list
 | file name | description |
 | ----- | ----- |
